@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  #html: default
-  pdf: default
+  html: default
+  #pdf: default
   #docx: default
 ---
 
@@ -52,7 +52,8 @@ First we load the necessary packages to complete our analysis and present the re
 
 ```{r message=FALSE, warning=FALSE}
 # install and load packages necessary for analysis and displaying the data
-packages <- c("flextable", "readxl", "stringr", "testCompareR", "dplyr", "here")
+packages <- c("flextable", "readxl", "stringr", "testCompareR", "dplyr", "here",
+              "janitor")
 
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -66,10 +67,11 @@ Next, we import the data. We can remove all columns except 'Malaria Project Numb
 
 ```{r message=FALSE, warning=FALSE}
 # import data
-tab <- read_xlsx(here("../data/OriginalAutopsyData.xlsx"))
+tab <- read_xlsx(here("../AnonData/OriginalAutopsyData.xlsx")) %>%
+  remove_empty()
 
 # select and rename essential columns
-tab <- tab %>% select(`Malaria Project Number (MP)`, CLASS, Ret)
+tab <- tab %>% select(mp_number, CLASS, Ret)
 colnames(tab) <- c("mp_number", "class", "orig_ret")
 
 # view the first 12 rows of the reduced table
@@ -91,20 +93,22 @@ A key for the *class* variable is provided below.
 In the above table we can see that individuals in whom the MP number is unknown all received a number of 9999. Further examination of the data revealed that one individual received the number 999 likely because of a keystroke error. Having individuals with non-unique identification numbers might disrupt downstream analyses so next, we have to give each of those a unique number. There was only one instance of 999 (out of sequence) so we felt it was reasonable to recode it along with the other non-unique IDs.
 
 ```{r message=FALSE, warning=FALSE}
-# replace rows with non-unique PID
-replace_rows <- tab$mp_number %in% c(999, 9999)
-unique_values <- seq(9999, length.out = sum(replace_rows), by = -1)
+## ONLY USED WITH COMPLETE DATA - NOT ANONYMISED DATA
 
-tab$mp_number[replace_rows] <- unique_values
+# replace rows with non-unique PID
+# replace_rows <- tab$mp_number %in% c(999, 9999)
+# unique_values <- seq(9999, length.out = sum(replace_rows), by = -1)
+
+# tab$mp_number[replace_rows] <- unique_values
 
 # convert to MP#### format
-tab <- tab %>% 
-  mutate(
-    mp_number = paste0("MP", str_pad(mp_number, width = 4, pad = 0))
-  )
+# tab <- tab %>% 
+#  mutate(
+#    mp_number = paste0("MP", str_pad(mp_number, width = 4, pad = 0))
+#  )
 
 # view the first 12 rows of the reduced table
-head(tab, 12)
+# head(tab, 12)
 ```
 
 Next, we identified several cases where a definitive answer to retinopathy was not provided. These cases were labelled 'trace whitening', 'atypical' or some variation thereof and '1 haemorrhage'. For the current study, these would all be considered as retinopathy positive, so they were recoded as such. It should be noted at this point that none of these cases met the clinical definition of cerebral malaria during life. Therefore, changing all of these to positive will generate false positives. Classifying them as retinopathy negative would generate true negatives only. `NA` values should remain unchanged.
@@ -137,7 +141,7 @@ tab <- tab %>%
     ),
     
     # change class for 1719 to 7
-    class = if_else(mp_number == "MP1719", "7", as.character(class)),
+    class = if_else(mp_number == "MPa083", "7", as.character(class)),
     
     # convert data frame to numeric
     orig_ret = as.numeric(orig_ret),
@@ -174,7 +178,8 @@ The data was collected by two reviewers (KJW and AL) and stored in an Excel spre
 
 ```{r message=FALSE, warning=FALSE}
 # import data from chart review
-chart <- read_xlsx(here("../data/ChartReviewData.xlsx"))
+chart <- read_xlsx(here("../AnonData/ChartReviewData.xlsx")) %>%
+  remove_empty()
 
 # add column to tab of new chart retinopathy data
 tab <- tab %>%
@@ -226,7 +231,8 @@ We made a decision to include any graded assessment where more than 50% of the r
 
 ```{r message=FALSE, warning=FALSE}
 # import graded retinopathy database
-rtd <- read.csv(here("../data/RetinopathyData.csv"))
+rtd <- read.csv(here("../AnonData/RetinopathyData.csv")) %>%
+  remove_empty()
 
 # BELOW COMMENTED OUT - ONLY USE WITH COMPLETE DATASET
 # make cases consistent and remove whitespace
@@ -300,9 +306,9 @@ TRUE %in% (disagree %in% rtd$diffs)
 # update the values as above
 tab <- tab %>%
   mutate(final_ret = case_when(
-    mp_number %in% c("MP0871", "MP1777", "MP2031") ~ NA_real_,
-    mp_number %in% c("MP1223", "MP1388") ~ 1,
-    mp_number %in% c("MP2011", "MP2083") ~ 0,
+    mp_number %in% c("MPa110", "MPa100", "MPa072") ~ NA_real_,
+    mp_number %in% c("MPa020", "MPa025") ~ 1,
+    mp_number %in% c("MPa031", "MPa030") ~ 0,
     TRUE ~ chart_ret  # keep original values for other cases
   ))
 ```
@@ -324,7 +330,7 @@ Each of these cases were reviewed again by two authors (KJW and KBS). The reason
 
 ```{r message=FALSE, warning=FALSE}
 #| code-fold: true
-#| code-summary: "Expand to see the code used to produce S1 Table 1"
+#| code-summary: "Expand to see the code used to produce table"
 
 # nb. some steps here may seem unnecessary, but they ensure nothing was missed
 # during steps taken in Excel 
@@ -333,18 +339,18 @@ Each of these cases were reviewed again by two authors (KJW and KBS). The reason
 table1 <- as.data.frame(rem_disagree)
 
 # import comments and change indicators
-comments <- read_xlsx(here("../data/ChartReviewData.xlsx"), sheet = 2)
-comments <- comments %>%
-  mutate(
-    mp_number = paste0("MP", str_pad(mp_number, 4, pad = 0))
-  )
+comments <- read_xlsx(here("../AnonData/ChartReviewData.xlsx"), sheet = 2)
+#comments <- comments %>%
+#  mutate(
+#    mp_number = paste0("MP", str_pad(mp_number, 4, pad = 0))
+#  )
 
 # join to table1
 table1 <- left_join(table1, comments %>% select(mp_number, short_comments), 
                     by = join_by(rem_disagree == mp_number))
 
 # add change column
-changed <- "MP2131"
+changed <- "MPa076"
 
 table1 <- table1 %>%
   mutate(change = if_else(rem_disagree %in% changed, "Yes", "No"))
@@ -366,7 +372,7 @@ To complete the final retinopathy classification, we should update the value fro
 # update the values as above
 tab <- tab %>%
   mutate(final_ret = case_when(
-    mp_number == "MP2131" ~ NA_real_,
+    mp_number == "MPa076" ~ NA_real_,
     TRUE ~ final_ret  # keep original values for other cases
   ))
 ```
@@ -389,9 +395,9 @@ We should first describe our population in terms of their demographics. To do th
 #| code-fold: true
 #| code-summary: "Expand to see the code used to produce Table 1"
 
-demo <- read_xlsx(here("../data/DemographicData.xlsx"))
+demo <- read_xlsx(here("../AnonData/DemographicData.xlsx"))
 
-demo[,4:19] <- lapply(demo[,4:19], function(x) {
+demo[,3:18] <- lapply(demo[,3:18], function(x) {
   x <- as.numeric(x)
   x <- ifelse(x < 0, NA, x)
   return(x)
@@ -570,7 +576,7 @@ res_all <- summariseR(data.frame(all$final_ret, all$true_cm))
 
 interpretR(res_all)
 
-filename <- here("../data/CompleteCohort.RData")
+filename <- here("../AnonData/CompleteCohort.RData")
 saveRDS(dat, filename)
 ```
 
@@ -586,16 +592,16 @@ Records for these cases were examined to try and get a more complete understandi
 
 For the cases where retinopathy was identified, but the patient had no evidence of sequestration we discovered:
 
-* MP0787 had a single haemorrhage and macular oedema in 1 eye, diagnosis
-* MP0899 had a single spot of retinal whitening in 1 eye, diagnosis 
-* MP1182 had 1-5 haemorrhages only in 1 eye, diagnosis clinical severe malaria without coma
-* MP1388 had peripheral whitening only in both eyes, diagnosis infectious encephalopathy (non-malaria)
-* MP1501 had 1-5 haemorrhages only in 1 eye, diagnosis non-infectious encephalopathy
-* MP1551 had haemorrhages only, many in right eye, diagnosis clinical CM without sufficient sequestration for diagnosis
-* MP1665 had peripheral whitening only in both eyes, diagnosis clinical CM without sufficient sequestration for diagnosis
-* MP1682 had MR with all signs, diagnosis CM without sufficient sequestration for diagnosis
-* MP2021 had 1-5 haemorrhages only in 1 eye, diagnosis clinical CM without sufficient sequestration for diagnosis
-* MP2230 had 1-5 haemorrhages in 1 eye and 6-20 haemorrhages in the other eye, diagnosis non-infectious encephalopathy
+* MPa079 had a single haemorrhage and macular oedema in 1 eye, diagnosis
+* MPa034 had a single spot of retinal whitening in 1 eye, diagnosis 
+* MPa042 had 1-5 haemorrhages only in 1 eye, diagnosis clinical severe malaria without coma
+* MPa025 had peripheral whitening only in both eyes, diagnosis infectious encephalopathy (non-malaria)
+* MPa108 had 1-5 haemorrhages only in 1 eye, diagnosis non-infectious encephalopathy
+* MPa002 had haemorrhages only, many in right eye, diagnosis clinical CM without sufficient sequestration for diagnosis
+* MPa018 had peripheral whitening only in both eyes, diagnosis clinical CM without sufficient sequestration for diagnosis
+* MPa065 had MR with all signs, diagnosis CM without sufficient sequestration for diagnosis
+* MPa017 had 1-5 haemorrhages only in 1 eye, diagnosis clinical CM without sufficient sequestration for diagnosis
+* MPa092 had 1-5 haemorrhages in 1 eye and 6-20 haemorrhages in the other eye, diagnosis non-infectious encephalopathy
 
 In several cases, the only findings were a small number of haemorrhages in one eye only.
 
@@ -652,7 +658,7 @@ both <- full_ret %>% filter(haem_r == 1 & haem_l == 1 &
 
 Finally, we recoded the retinopathy status for all of those cases where the only evidence of retinopathy was one to five haemorrhages in one eye only to be negative. We then re-run the analysis comparing all parameters using the `testCompareR` package.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 full_ret <- full_ret %>%
   mutate(
     recoded = if_else(mp_number %in% one_to_five, # if 1-5 haemorrhages
@@ -669,7 +675,7 @@ ret_recode <- full_ret %>%
 # compare original and recoded data
 compareR(ret_recode, multi_corr = "holm") %>% interpretR()
 
-filename <- here("../data/OphthCohort.RData")
+filename <- here("../AnonData/OphthCohort.RData")
 saveRDS(full_ret, filename)
 ```
 

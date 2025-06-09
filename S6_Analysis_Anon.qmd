@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  #html: default
-  pdf: default
+  html: default
+  #pdf: default
   #docx: default
 ---
 
@@ -43,7 +43,7 @@ for (pkg in packages) {
 
 set.seed(0)
 
-dual <- read_xlsx(here("../data/ImageConcordanceData.xlsx"))
+dual <- read_xlsx(here("../AnonData/ImageConcordanceData.xlsx"))
 dual <- dual %>% mutate(across(2:11, ~na_if(.x, -9)))
 
 dual <- dual %>%
@@ -62,7 +62,7 @@ dual <- dual %>%
 
 Next, we compare grading of the presence or absence of MR.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 tab <- table(dual$status_ob, dual$status_kw)
 res.k <- vcd::Kappa(tab)
 ci.k <- confint(res.k)
@@ -72,7 +72,7 @@ cat("MR status: ", round(res.k$Unweighted["value"], 3),
 
 Then we look at individual features of MR.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 features <- c("ahaem", "acfa", "awhitcmac", "apw", "avc")
 feature_names <- c(
   ahaem = "Haemorrhages",
@@ -107,68 +107,7 @@ Next, we wanted to compare the data from the photo grading with the findings fro
 #| code-fold: true
 #| code-summary: "Expand to see the code for data cleaning"
 
-rtd <- read.csv(here("../data/RetinopathyConcordanceData.csv"))
-
-# make cases consistent and remove whitespace
-rtd$mpid <- toupper(rtd$mpid)
-rtd$mpid <- gsub(" ", "", rtd$mpid)
-
-rtd <- rtd %>% select(1:3,6:7,12:15,24:27,92:95,96,98)
-colnames(rtd) <- c("mp_number", "haem_r", "haem_l", "pap_r", "pap_l",
-                   "mac_wh_r", "mac_wh_l", "fov_wh_r", "fov_wh_l",
-                   "per_wh_r", "per_wh_l", "wh_qu_seen_r", "wh_qu_seen_l",
-                   "quad_vc_r", "quad_vc_l", "vc_qu_seen_r", "vc_qu_seen_l",
-                   "score", "doc")
-
-# make the data match the photo grading data structure
-rtd <- rtd %>% transmute(
-  mp_number = mp_number,
-  ahaem_r = case_when(
-    haem_r == 7 ~ 4,
-    haem_r < 0 ~ NA_real_,
-    TRUE ~ haem_r), 
-  ahaem_l = case_when(
-    haem_l == 7 ~ 4,
-    haem_l < 0 ~ NA_real_,
-    TRUE ~ haem_l),
-  acfa_r = case_when(
-    fov_wh_r < 0 ~ NA_real_,
-    TRUE ~ fov_wh_r),
-  acfa_l = case_when(
-    fov_wh_l < 0 ~ NA_real_,
-    TRUE ~ fov_wh_l),
-  awhitcmac_r = case_when(
-    mac_wh_r == 3 ~ 2,
-    mac_wh_r == 4 ~ 3,
-    mac_wh_r < 0 ~ NA_real_,
-    TRUE ~ mac_wh_r),
-  awhitcmac_l = case_when(
-    mac_wh_l == 3 ~ 2,
-    mac_wh_l == 4 ~ 3,
-    mac_wh_l < 0 ~ NA_real_,
-    TRUE ~ mac_wh_l),
-  apw_r = if_else(per_wh_r %in% 1:12, 1,
-                  if_else(per_wh_r == 0 & 
-                         (wh_qu_seen_r == 3 | wh_qu_seen_r == 4), 0, NA_real_)),
-  apw_l = if_else(per_wh_l %in% 1:12, 1,
-                  if_else(per_wh_l == 0 & 
-                         (wh_qu_seen_l == 3 | wh_qu_seen_l == 4), 0, NA_real_)),
-  avc_r = if_else(quad_vc_r %in% 1:4, 1, 
-                  if_else(quad_vc_r == 0 & 
-                         (vc_qu_seen_r == 3 | vc_qu_seen_r == 4), 0, NA_real_)),
-  avc_l = if_else(quad_vc_l %in% 1:4, 1,
-                  if_else(quad_vc_l == 0 & 
-                         (vc_qu_seen_l == 3 | vc_qu_seen_l == 4), 0, NA_real_))
-  )
-
-rtd <- rtd %>%
-  pivot_longer(
-    cols = -mp_number,
-    names_to = c(".value", "side"),
-    names_sep = "_"
-  ) %>%
-  mutate(mp_number = paste0(mp_number, toupper(side))) %>%
-  select(-side)
+rtd <- read.csv(here("../AnonData/RetinopathyConcordanceData.csv"))
 
 rtd <- rtd %>% filter(mp_number %in% dual$mp_number)
 rtd <- rtd %>%
@@ -185,7 +124,7 @@ rtd <- left_join(rtd, dual, join_by(mp_number == mp_number))
 
 Now, we can conduct the analysis. For this analysis we used the ophthalmologist grading (KJW) and compared to graded ophthalmologist assessment. Once again, first we look at presence and absence of MR.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 tab <- table(rtd$status, rtd$status_kw)
 res.k <- vcd::Kappa(tab)
 ci.k <- confint(res.k)
@@ -195,7 +134,7 @@ cat("MR status: ", round(res.k$Unweighted["value"], 3),
 
 Then we look at the individual features of MR. 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 for (i in seq_along(features)) {
   feat <- features[i]
   name <- feature_names[feat]
@@ -213,7 +152,7 @@ Here, we can see that while agreement is generally good, agreement in haemorrhag
 
 To do this, we simply subtracted the score from the examination from the grading score from stored images, then calculated the mean. If there was a directional effect this would result in a negative number (undergrading from the photos) or positive number (overgrading from the photos). The significance of this directional effect was assessed using the Mann-Whitney-U test for non-parametric data.
 
-```{r warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 p_values <- numeric(length(features))
 mean_diffs <- numeric(length(features))
 
@@ -239,7 +178,8 @@ for (i in seq_along(features)) {
   grade <- if (mean_diff < 0) "undergraded" else "overgraded"
   miss <- if (mean_diff < 0) "missed" else "recognised erroneously"
   
-  direction <- if (adj_p < 0.05) "This is statistically significant." else "This is not statistically significant."
+  direction <- if (adj_p < 0.05) "This is statistically significant." 
+  else "This is not statistically significant."
   
   if(feat %in% c("ahaem", "acfa", "awhitcmac")) {
     cat(

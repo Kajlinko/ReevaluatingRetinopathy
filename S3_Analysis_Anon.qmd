@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  #html: default
-  pdf: default
+  html: default
+  #pdf: default
   #docx: default
 ---
 
@@ -44,13 +44,14 @@ for (pkg in packages) {
 set.seed(0)
 
 # complete cohort (with reference test result)
-filename <- here("../data/CompleteCohort.RData")
+filename <- here("../AnonData/CompleteCohort.RData")
 dat <- readRDS(filename) #%>% filter(complete.cases(true_cm))
 
-ref1 <- dat %>% filter(complete.cases(final_ret)) %>% select(2:3)
+ref1 <- dat %>% filter(complete.cases(final_ret) & 
+                         complete.cases(true_cm)) %>% select(2:3)
 ref1 <- summariseR(ref1)
 
-filename <- here("../data/OphthCohort.RData")
+filename <- here("../AnonData/OphthCohort.RData")
 ophth <- readRDS(filename) %>% filter(complete.cases(true_cm))
 
 ref2 <- ophth %>% 
@@ -141,8 +142,7 @@ ft1 <- comparison %>% rownames_to_column(var = "Variable") %>%
   align(align = "center", part = "all") %>%
   autofit()
 
-ft1 %>% save_as_docx(path = here("S4_Table.docx"))
-ft1
+ft1 #%>% save_as_docx(path = here("S4_Table.docx"))
 ```
 
 ## 2 Sensitivity analyses
@@ -314,8 +314,8 @@ g1 <- ggplot(power, aes(x = sample_size, y = power, color = method)) +
        y = "Estimated power",
        color = "method")
 
-filename <- "S5_Figure.pdf"
-ggsave(filename, plot = g1, width = 8, height = 6)
+# filename <- "S5_Figure.pdf"
+# ggsave(filename, plot = g1, width = 8, height = 6)
 
 g1
 ```
@@ -333,7 +333,7 @@ The first analysis we conducted to explore spectrum bias stratified children by 
 With these data sets we can then look for differences in sensitivity and specificity of malarial retinopathy in the less severe and more severe groups. We can also evaluate the effect of adjusting the definition of malarial retinopathy in less severe and more severe group.
 
 ```{r message=FALSE, warning=FALSE}
-demo <- read_xlsx(here("../data/Demographicdata.xlsx"))
+demo <- read_xlsx(here("../AnonData/Demographicdata.xlsx"))
 lq <- quantile(demo$death, 0.25)
 uq <- quantile(demo$death, 0.75)
 
