@@ -1,0 +1,562 @@
+---
+title: "Sensitivity analyses, post-hoc power calculations and evaluation of spectrum bias"
+author: 
+  - "Kyle J Wilson"
+  - "Alice Muiruri Liomba"
+  - "Karl B Seydel"
+  - "Owen K Banda"
+  - "Christopher A Moxon"
+  - "Ian JC MacCormick"
+  - "Simon P Harding"
+  - "Nicholas AV Beare"
+  - "Terrie E Taylor"
+format:
+  #html: default
+  pdf: default
+  #docx: default
+---
+
+## 1 Introduction
+To assess the effect of missing data on our cohort, we first describe the characteristics of included participants and those with missing values for the index or reference tests, then perform worst- and best-case scenario sensitivity analyses.
+
+Next, we perform post-hoc power calculations for transparency and to better understand the results by considering the limitations of our cohort. 
+
+Finally, we explore spectrum bias within our cohort. Discussions of the inherent biases of autopsy cohort are found in the main article.
+
+First though, we should read the data output from S2 Analysis.
+
+```{r message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Expand to see the code used to read data"
+
+# install and load packages necessary for analysis and displaying the data
+packages <- c("readr", "tidyr", "readxl", "stringr", "testCompareR", "dplyr", 
+              "here", "tibble", "mice", "glmnet", "Matrix", "flextable", 
+              "ggplot2", "purrr")
+
+for (pkg in packages) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg)
+  }
+  library(pkg, character.only = TRUE)
+}
+
+set.seed(0)
+
+# complete cohort (with reference test result)
+filename <- here("../data/CompleteCohort.RData")
+dat <- readRDS(filename) #%>% filter(complete.cases(true_cm))
+
+ref1 <- dat %>% filter(complete.cases(final_ret)) %>% select(2:3)
+ref1 <- summariseR(ref1)
+
+filename <- here("../data/OphthCohort.RData")
+ophth <- readRDS(filename) %>% filter(complete.cases(true_cm))
+
+ref2 <- ophth %>% 
+  filter(complete.cases(ophth_ret)) %>% 
+  select(ophth_ret, true_cm)
+ref2 <- summariseR(ref2)
+```
+
+Then we produce the comparative table for the included and missing cohorts (S4).
+
+```{r message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Expand to see the code used to produce S4 Table"
+#| 
+make_summary <- function(df) {
+  tibble::tibble(
+    Age = sprintf("%.1f (%.1f - %.1f)", median(df$age, na.rm = TRUE), 
+                  min(df$age, na.rm = TRUE), max(df$age, na.rm = TRUE)),
+    `No. Male (%)` = sprintf("%d (%.1f)", sum(df$sex, na.rm = TRUE), 
+                             mean(df$sex, na.rm = TRUE) * 100),
+    `No. Fever (%)` = sprintf("%d (%.1f)", sum(df$hxfever, na.rm = TRUE), 
+                              mean(df$hxfever, na.rm = TRUE) * 100),
+    `Fever Duration (h)` = sprintf("%.1f (%.1f - %.1f)", 
+                                   median(df$feverdur, na.rm = TRUE), 
+                                   min(df$feverdur, na.rm = TRUE), 
+                                   max(df$feverdur, na.rm = TRUE)),
+    `Temperature (C)` = sprintf("%.1f (%.1f - %.1f)", 
+                                median(df$temp, na.rm = TRUE), 
+                                min(df$temp, na.rm = TRUE), 
+                                max(df$temp, na.rm = TRUE)),
+    `Heart Rate (/min)` = sprintf("%.1f (%.1f - %.1f)", 
+                                  median(df$pulse, na.rm = TRUE), 
+                                  min(df$pulse, na.rm = TRUE), 
+                                  max(df$pulse, na.rm = TRUE)),
+    `Resp. Rate (/min)` = sprintf("%.1f (%.1f - %.1f)", 
+                                  median(df$resp, na.rm = TRUE), 
+                                  min(df$resp, na.rm = TRUE), 
+                                  max(df$resp, na.rm = TRUE)),
+    `Syst. BP (mmHg)` = sprintf("%.1f (%.1f - %.1f)", 
+                                median(df$bp, na.rm = TRUE), 
+                                min(df$bp, na.rm = TRUE), 
+                                max(df$bp, na.rm = TRUE)),
+    `Weight (kg)` = sprintf("%.1f (%.1f - %.1f)", 
+                            median(df$wt, na.rm = TRUE), 
+                            min(df$wt, na.rm = TRUE), 
+                            max(df$wt, na.rm = TRUE)),
+    `No. BCS 0 (%)` = sprintf("%d (%.1f)", sum(df$comasc == 0, na.rm = TRUE), 
+                              mean(df$comasc == 0, na.rm = TRUE) * 100),
+    `No. BCS 1 (%)` = sprintf("%d (%.1f)", sum(df$comasc == 1, na.rm = TRUE),
+                              mean(df$comasc == 1, na.rm = TRUE) * 100),
+    `No. BCS 2 (%)` = sprintf("%d (%.1f)", sum(df$comasc == 2, na.rm = TRUE), 
+                              mean(df$comasc == 2, na.rm = TRUE) * 100),
+    `No. BCS > 2 (%)` = sprintf("%d (%.1f)", sum(df$comasc > 2, na.rm = TRUE), 
+                                mean(df$comasc > 2, na.rm = TRUE) * 100),
+    `CSF Opening Pressure (mmH2O)` = sprintf("%.1f (%.1f - %.1f)", 
+                                             median(df$opencsf, na.rm = TRUE), 
+                                             min(df$opencsf, na.rm = TRUE), 
+                                             max(df$opencsf, na.rm = TRUE)),
+    `Time to Death (h)` = sprintf("%.1f (%.1f - %.1f)", 
+                                  median(df$death, na.rm = TRUE), 
+                                  min(df$death, na.rm = TRUE), 
+                                  max(df$death, na.rm = TRUE))
+  )
+}
+
+included <- dat %>%
+  filter(complete.cases(final_ret, true_cm)) %>%
+  make_summary() %>% t()
+
+excluded <- dat %>%
+  filter(!complete.cases(final_ret, true_cm)) %>%
+  make_summary() %>% t()
+
+comparison <- bind_cols(Included = included[,1], Missing = excluded[,1]) %>%
+  as.data.frame() 
+
+rownames(comparison) <- rownames(included)
+header1 <- paste0("n = ", nrow(dat %>% 
+                                 filter(complete.cases(final_ret, true_cm))))
+header2 <- paste0("n = ", nrow(dat %>% 
+                                 filter(!complete.cases(final_ret, true_cm))))
+
+ft1 <- comparison %>% rownames_to_column(var = "Variable") %>%
+  flextable() %>%
+  add_header_row(top = FALSE, values = c("", header1, header2)) %>%
+  merge_at(i = 1:2, j = 1, part = "header") %>%
+  theme_booktabs() %>%
+  align(align = "center", part = "all") %>%
+  autofit()
+
+ft1 %>% save_as_docx(path = here("S4_Table.docx"))
+ft1
+```
+
+## 2 Sensitivity analyses
+Here, we seek to check the effect of missing data on our result by re-running the `testCompareR` analysis assuming best- and worst-case scenarios for the missing data. Ideally, this should not affect the performance metrics too much, such that the point estimates fall within the confidence intervals established during complete case analysis. Because we had <5% missing data in the reference test (n = 4), we restricted sensitivity analyses to the index test to maximise interpretability. 
+
+```{r message=FALSE, warning=FALSE}
+sensitivity_analysis <- function(ref_list, sens_list) {
+  
+  if(inherits(ref_list, "summariseR")) {
+    
+    metrics <- list(
+    Sensitivity = list(ref = ref_list$acc[1, ], val = sens_list$acc[1, 1]),
+    Specificity = list(ref = ref_list$acc[2, ], val = sens_list$acc[2, 1]),
+    PPV = list(ref = ref_list$pv[1, ], val = sens_list$pv[1, 1]),
+    NPV = list(ref = ref_list$pv[2, ], val = sens_list$pv[2, 1]),
+    PLR = list(ref = ref_list$lr[1, ], val = sens_list$lr[1, 1]),
+    NLR = list(ref = ref_list$lr[2, ], val = sens_list$lr[2, 1])
+    )
+  
+    for (name in names(metrics)) {
+      val <- metrics[[name]]$val
+      lci <- metrics[[name]]$ref[3]
+      uci <- metrics[[name]]$ref[4]
+      
+      if (val >= lci & val <= uci) {
+        cat(paste0(name, " falls within CIs of CCA.\n"))
+      } else {
+        cat(paste0(name, " does not fall within CIs of CCA.\n"))
+      }
+      cat("  SA estimate: ", val, "\n  CCA CI: ", lci, " - ", uci, "\n")
+    }
+    
+  } 
+  
+}
+```
+
+### 2.1 Best-case scenario for missing data
+Best-case scenario analysis for missing data in the context of diagnostic tests means assigning every positive result in the reference test as a true positive (index test positive) and every negative result in the reference test a true negative (index test negative).
+
+#### 2.1.1 Missing index test in complete cohort (n = 15)
+
+```{r message=FALSE, warning=FALSE}
+sens1 <- dat %>% filter(complete.cases(true_cm))
+sens1$final_ret <- ifelse((is.na(sens1$final_ret) & sens1$true_cm == 1), 1,
+                   ifelse((is.na(sens1$final_ret) & sens1$true_cm == 0), 0,
+                          sens1$final_ret))
+
+sens1 <- testCompareR::summariseR(sens1[,2:3])
+
+sensitivity_analysis(ref1, sens1)
+```
+
+#### 2.1.1 Missing index test in sub-analysis (ophthalmogist-graded assessments, n = 4)
+
+```{r message=FALSE, warning=FALSE}
+sens2 <- ophth
+sens2$ophth_ret <- ifelse((is.na(sens2$ophth_ret) & sens2$true_cm == 1), 1,
+                   ifelse((is.na(sens2$ophth_ret) & sens2$true_cm == 0), 0,
+                          sens2$ophth_ret))
+
+sens2 <- sens2 %>% select(ophth_ret, true_cm)
+sens2 <- testCompareR::summariseR(sens2)
+
+sensitivity_analysis(ref2, sens2)
+```
+
+### 2.2 Worst-case scenario for missing data
+Worst-case scenario analysis for missing data in the context of diagnostic tests means assigning every positive result in the reference test as a false negative (index test negative) and every negative result in the reference test a false positive (index test positive). 
+
+#### 2.2.1 Missing index test in complete cohort (n = 15)
+
+```{r message=FALSE, warning=FALSE}
+sens3 <- dat %>% filter(complete.cases(true_cm))
+sens3$final_ret <- ifelse((is.na(sens3$final_ret) & sens3$true_cm == 1), 0,
+                   ifelse((is.na(sens3$final_ret) & sens3$true_cm == 0), 1,
+                          sens3$final_ret))
+
+sens3 <- testCompareR::summariseR(sens3[,2:3])
+
+sensitivity_analysis(ref1, sens3)
+```
+
+#### 2.2.2 Missing index test in sub-analysis (ophthalmogist-graded assessments, n = 4)
+
+```{r message=FALSE, warning=FALSE}
+sens4 <- ophth
+sens4$ophth_ret <- ifelse((is.na(sens4$ophth_ret) & sens4$true_cm == 1), 0,
+                   ifelse((is.na(sens4$ophth_ret) & sens4$true_cm == 0), 1,
+                          sens4$ophth_ret))
+
+sens4 <- sens4 %>% select(ophth_ret, true_cm)
+sens4 <- testCompareR::summariseR(sens4)
+
+sensitivity_analysis(ref2, sens4)
+```
+
+## 3 Post-hoc power calculations
+Because our sample size is small for the sub-analysis (n=60) there is a high likelihood that this analysis is underpowered to detect a difference between the definitions of malarial retinopathy if a difference exists. Because `testCompareR` uses different methods depending on the sample size and disease prevalence, we cannot easily use asymptotic methods to calculate power. Instead, we can employ simulation to approximate our power and the sample size required to achieve 80% power to detect a difference. This will be useful for future research.
+
+```{r message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Expand to see the code used to produce S5 Figure"
+
+sim_model <- function(n) {
+  results <- replicate(n = 1000, expr = {
+    boot_sample <- ophth %>% 
+    filter(complete.cases(ophth_ret) & complete.cases(true_cm) & 
+             complete.cases(recoded)) %>%
+    select(ophth_ret, recoded, true_cm) %>%
+    slice_sample(n = n, replace = TRUE)
+    
+    testCompareR::compareR(test1 = boot_sample$ophth_ret,
+                           test2 = boot_sample$recoded,
+                           gold = boot_sample$true_cm)$acc$spec.p.adj < 0.05})
+  
+  mean(unlist(results), na.rm = TRUE)
+  
+}
+
+sample_size <- seq.int(50, 200, 10)
+power <- sapply(sample_size, sim_model)
+power <- data.frame(sample_size, power)
+
+power <- power %>%
+  mutate(method = ifelse(sample_size <= 100, "exact", "wald"))
+
+lm_exact <- lm(power ~ sample_size, data = subset(power, method == "exact"))
+lm_wald  <- lm(power ~ poly(sample_size, 2, raw = TRUE), 
+               data = subset(power, method == "wald"))
+
+pred_power <- coef(lm_exact)[1] + 60*coef(lm_exact)[2]
+
+a <- coef(lm_wald)[1]
+b <- coef(lm_wald)[2]
+c <- coef(lm_wald)[3]
+
+delta <- b^2 - 4*c*(a - 0.8)
+n1 <- (-b + sqrt(delta)) / (2*c)
+n2 <- (-b - sqrt(delta)) / (2*c)
+
+pred_n <- ifelse(n1 >= 50 & n1 <= 200, n1, n2)
+
+power$pred_quad <- NA
+power$pred_exp <- NA
+
+power$pred_quad[power$method == "exact"] <- predict(lm_exact)
+power$pred_quad[power$method == "wald"]  <- predict(lm_wald)
+
+g1 <- ggplot(power, aes(x = sample_size, y = power, color = method)) +
+  geom_point(size = 2) +
+  geom_line(aes(y = pred_quad), linetype = "dashed") +
+  geom_segment(aes(x = 50, xend = pred_n, y = 0.80, yend = 0.80), 
+               linetype = "dotted", colour = "blue") +
+  geom_segment(aes(x = pred_n, xend = pred_n, y = 0.2, yend = 0.80), 
+               linetype = "dotted", colour = "blue") +
+  geom_segment(aes(x = 50, xend = 60, y = pred_power, yend = pred_power), 
+               linetype = "dotted", colour = "purple") +
+  geom_segment(aes(x = 60, xend = 60, y = 0.2, yend = pred_power), 
+               linetype = "dotted", colour = "purple") +
+  geom_text(aes(x = 160, y = 0.75, 
+                label = paste0("n = ", round(pred_n, 0))), 
+            colour = "black", hjust = -0.1) +
+  geom_text(aes(x = 63, y = pred_power, 
+                label = paste0("Power = ", round(pred_power*100, 1), "%")), 
+            colour = "black", hjust = -0.1) +
+  theme_minimal(base_size = 14) +
+  labs(x = "Sample size",
+       y = "Estimated power",
+       color = "method")
+
+filename <- "S5_Figure.pdf"
+ggsave(filename, plot = g1, width = 8, height = 6)
+
+g1
+```
+
+This shows that the sample size limitation inherent in our retrospective analysis left us underpowered and may explain in part why we are only seeing a trend towards significance. To be adequately powered to detect a difference in specificity of 12% (observed in this cohort) we would need to recruit 157 patients. 
+
+## 4 Exploring spectrum bias
+
+Spectrum bias is an inherent limitation of autopsy studies and this has been discussed in the main article. Unfortunately, there is no suitable validation cohort because autopsy studies in paediatric cerebral malaria are few. Using a model to predict cerebral parasite sequestration as the ground truth in cohorts which include survivors is possible, but is likely to encounter problems of reliability because models lack sufficiently high performance to be used as a reference test or rely on malarial retinopathy as one of the input variables, thus introducing circular logic when evaluating the effect of adjusting the definition of malarial retinopathy.
+
+We can approximate the effects of spectrum bias within cohort, however, by using clinical parameters as estimators of disease severity. One parameter which might give a clue as to how disease severity affects our estimates of sensitivity and specificity is time to death. This relies on the assumption that children who are more sick are closer to death. This assumption may not always hold - for example, a child may receive more intervention, there may be a higher level of care available to that child, or they may have a complication more amenable to intervention. All of these scenarios are independent of disease severity, but may influence time to death. It is worth bearing this in mind as we conduct the next analysis.
+
+The first analysis we conducted to explore spectrum bias stratified children by time to death and selected children from the bottom quartile and top quartile. Because this reduces the already small sample size we used bootstrapping from these cohorts to create simulated data sets of n=60 (sub-analysis sample size), n=84 (main analysis sample size) and n=157 (from above power calculation).
+
+With these data sets we can then look for differences in sensitivity and specificity of malarial retinopathy in the less severe and more severe groups. We can also evaluate the effect of adjusting the definition of malarial retinopathy in less severe and more severe group.
+
+```{r message=FALSE, warning=FALSE}
+demo <- read_xlsx(here("../data/Demographicdata.xlsx"))
+lq <- quantile(demo$death, 0.25)
+uq <- quantile(demo$death, 0.75)
+
+ophth <- ophth %>% left_join(demo %>% select(mp_number, death),
+                                   join_by(mp_number == mp_number))
+
+results <- replicate(n = 500, expr = {
+    boot_sample <- ophth %>% 
+    filter(complete.cases(ophth_ret) & complete.cases(true_cm) & 
+             complete.cases(recoded)) %>%
+    select(ophth_ret, recoded, true_cm, death) %>%
+    slice_sample(n = 60, replace = TRUE)
+    
+    boot_sample_severe <- boot_sample %>% filter(death <= lq)
+    boot_sample_mod <- boot_sample %>% filter(death >= uq)
+    
+    list(severe = testCompareR::compareR(test1 = boot_sample_severe$ophth_ret,
+                           test2 = boot_sample_severe$recoded,
+                           gold = boot_sample_severe$true_cm),
+         moderate = testCompareR::compareR(test1 = boot_sample_mod$ophth_ret,
+                           test2 = boot_sample_mod$recoded,
+                           gold = boot_sample_mod$true_cm))},
+    simplify = FALSE)
+
+results_powered <- replicate(n = 500, expr = {
+    boot_sample <- ophth %>% 
+    filter(complete.cases(ophth_ret) & complete.cases(true_cm) & 
+             complete.cases(recoded)) %>%
+    select(ophth_ret, recoded, true_cm, death) %>%
+    slice_sample(n = 157, replace = TRUE)
+    
+    boot_sample_severe <- boot_sample %>% filter(death <= lq)
+    boot_sample_mod <- boot_sample %>% filter(death >= uq)
+    
+    list(severe = testCompareR::compareR(test1 = boot_sample_severe$ophth_ret,
+                           test2 = boot_sample_severe$recoded,
+                           gold = boot_sample_severe$true_cm),
+         moderate = testCompareR::compareR(test1 = boot_sample_mod$ophth_ret,
+                           test2 = boot_sample_mod$recoded,
+                           gold = boot_sample_mod$true_cm))},
+    simplify = FALSE)
+```
+
+We can summarise the results in a table by taking the mean across all 500 repititions for each of the models.
+
+```{r message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Expand to see the code used to produce table"
+
+extract_metrics <- function(x) {
+  tryCatch({
+    tibble(
+      sev_sens1 = x$severe$acc$accuracies$`Test 1`[1, 1],
+      sev_spec1 = x$severe$acc$accuracies$`Test 1`[2, 1],
+      sev_ppv1  = x$severe$pv$predictive.values$`Test 1`[1, 1],
+      sev_npv1  = x$severe$pv$predictive.values$`Test 1`[2, 1],
+      sev_plr1  = x$severe$lr$likelihood.ratios$`Test 1`[1, 1],
+      sev_nlr1  = x$severe$lr$likelihood.ratios$`Test 1`[2, 1],
+      
+      sev_sens2 = x$severe$acc$accuracies$`Test 2`[1, 1],
+      sev_spec2 = x$severe$acc$accuracies$`Test 2`[2, 1],
+      sev_ppv2  = x$severe$pv$predictive.values$`Test 2`[1, 1],
+      sev_npv2  = x$severe$pv$predictive.values$`Test 2`[2, 1],
+      sev_plr2  = x$severe$lr$likelihood.ratios$`Test 2`[1, 1],
+      sev_nlr2  = x$severe$lr$likelihood.ratios$`Test 2`[2, 1],
+      
+      mod_sens1 = x$moderate$acc$accuracies$`Test 1`[1, 1],
+      mod_spec1 = x$moderate$acc$accuracies$`Test 1`[2, 1],
+      mod_ppv1  = x$moderate$pv$predictive.values$`Test 1`[1, 1],
+      mod_npv1  = x$moderate$pv$predictive.values$`Test 1`[2, 1],
+      mod_plr1  = x$moderate$lr$likelihood.ratios$`Test 1`[1, 1],
+      mod_nlr1  = x$moderate$lr$likelihood.ratios$`Test 1`[2, 1],
+
+      mod_sens2 = x$moderate$acc$accuracies$`Test 2`[1, 1],
+      mod_spec2 = x$moderate$acc$accuracies$`Test 2`[2, 1],
+      mod_ppv2  = x$moderate$pv$predictive.values$`Test 2`[1, 1],
+      mod_npv2  = x$moderate$pv$predictive.values$`Test 2`[2, 1],
+      mod_plr2  = x$moderate$lr$likelihood.ratios$`Test 2`[1, 1],
+      mod_nlr2  = x$moderate$lr$likelihood.ratios$`Test 2`[2, 1]
+    )
+  }, error = function(e) NULL)
+}
+
+# Apply to all results
+summary_df <- map_dfr(results, extract_metrics)
+summary_df <- summary_df %>%
+  mutate(across(everything(), ~replace(.x, is.infinite(.x), NA)))
+
+# Mean summary
+summary_means <- summary_df %>%
+  summarise(across(everything(), ~round(mean(.x, na.rm = TRUE), digits = 1)))
+
+summary_table <- summary_means %>%
+  # Convert wide to long format
+  pivot_longer(cols = everything(),
+               names_to = "metric_group",
+               values_to = "value") %>%
+  # Separate components
+  extract(metric_group, into = c("group", "metric", "test"),
+          regex = "(sev|mod)_(.*?)([12])") %>%
+  mutate(
+    group = recode(group, sev = "Severe", mod = "Moderate"),
+    test = paste0("Test ", test),
+    metric = recode(metric,
+                    sens = "Sensitivity",
+                    spec = "Specificity",
+                    ppv  = "PPV",
+                    npv  = "NPV",
+                    plr  = "PLR",
+                    nlr  = "NLR")
+  ) %>%
+  # Create a combined column name for columns
+  unite("group_test", group, test, sep = " – ") %>%
+  pivot_wider(names_from = group_test, values_from = value) %>%
+  # Optional: reorder rows
+  arrange(factor(metric, levels = c("Sensitivity", "Specificity", "PPV", "NPV", "PLR", "NLR")))
+
+ft1 <- flextable(summary_table) %>%
+  autofit() %>%
+  align(align = "center", part = "all")
+
+ft1
+```
+
+```{r message=FALSE, warning=FALSE}
+#| code-fold: true
+#| code-summary: "Expand to see the code used to produce table"
+
+summary_df <- map_dfr(results_powered, extract_metrics)
+summary_df <- summary_df %>%
+  mutate(across(everything(), ~replace(.x, is.infinite(.x), NA)))
+
+# Mean summary
+summary_means <- summary_df %>%
+  summarise(across(everything(), ~round(mean(.x, na.rm = TRUE), digits = 1)))
+
+summary_table <- summary_means %>%
+  # Convert wide to long format
+  pivot_longer(cols = everything(),
+               names_to = "metric_group",
+               values_to = "value") %>%
+  # Separate components
+  extract(metric_group, into = c("group", "metric", "test"),
+          regex = "(sev|mod)_(.*?)([12])") %>%
+  mutate(
+    group = recode(group, sev = "Severe", mod = "Moderate"),
+    test = paste0("Test ", test),
+    metric = recode(metric,
+                    sens = "Sensitivity",
+                    spec = "Specificity",
+                    ppv  = "PPV",
+                    npv  = "NPV",
+                    plr  = "PLR",
+                    nlr  = "NLR")
+  ) %>%
+  # Create a combined column name for columns
+  unite("group_test", group, test, sep = " – ") %>%
+  pivot_wider(names_from = group_test, values_from = value) %>%
+  # Optional: reorder rows
+  arrange(factor(metric, levels = c("Sensitivity", "Specificity", "PPV", "NPV", "PLR", "NLR")))
+
+ft2 <- flextable(summary_table) %>%
+  autofit() %>%
+  align(align = "center", part = "all")
+
+ft2
+```
+
+Here we can see that changing the definition of malarial retinopathy such that 1-5 haemorrhages in one eye only is not considered predictive of cerebral parasite sequestration appears to only affect children in the 'severe' group (that is, those who died most quickly after admission). This suggests that this change in the definition is most useful in severe cases. It should be noted, though, that this change didn't appear to detrimentally affect less severe children in this cohort. Given that being declared retinopathy negative should increase clinician vigilance, the safest thing for patients in whom the sole sign of malarial retinopathy is 1-5 haemorrhages in one eye only is to classify them as 'at risk' of misdiagnosis and consider alternatives quickly if there is limited response to treatment. 
+
+Another method to evaluate the effects of clinical parameters (surrogates for disease severity) on test performance is to treat it as a classification problem and use logistic regression to predict the binary outcome of the response variable (reference test) from predictor variables including the index test (binary) and clinical variables. Using the LASSO regularisation method allows us to assess whether clinical variables or the interaction between the index test and clinical variables are important for prediction accuracy. LASSO regression may penalise the index test, reducing the model coefficient to zero. To avoid this, we can set the penalty for this variable to zero and see whether any other clinical variables included in the model exert an influence on the prediction over and above the effect of the index test.
+
+Because construction of the model matrix requires complete data, we used multiple imputation by chained equations to produce 5 data sets for LASSO logistic regression and evaluated how frequently predictors were retained following LASSO penalisation and the mean effect size. We ran the LASSO logistic regression using the original cohort (n=84).  
+
+```{r message=FALSE, warning=FALSE}
+vars <- c("true_cm", "final_ret", "age", "sex", "feverdur", "temp", "pulse", 
+          "resp", "bp", "wt", "comasc", "death")
+
+dat <- dat %>% select(all_of(vars))
+
+imputed <- mice(dat, m = 10, seed = 0, printFlag = FALSE)
+
+coef_list <- list()
+
+for (i in 1:10) {
+  
+  dat_i <- complete(imputed, i)
+  
+  x <- model.matrix(true_cm ~ final_ret * 
+                      (age + sex + feverdur + temp + pulse + resp + 
+                       bp + wt + comasc + death), data = dat_i)[, -1]
+  y <- dat_i$true_cm
+  
+  # do not penalise index test
+  penalty_factors <- rep(1, ncol(x))
+  penalty_factors[which(colnames(x) == "final_ret")] <- 0
+
+  fit <- cv.glmnet(x, y, alpha = 1, family = "binomial",
+                   penalty.factor = penalty_factors)
+  coefs <- coef(fit, s = "lambda.1se")
+  
+  coef_list[[i]] <- as.vector(coefs)
+  names(coef_list[[i]]) <- rownames(coefs)
+  
+}
+
+coef_df <- do.call(rbind, coef_list) %>% as.data.frame()
+coef_df <- coef_df[, colSums(coef_df != 0) > 0]
+
+summary_df <- coef_df %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "coef") %>%
+  group_by(variable) %>%
+  summarise(
+    times_selected = sum(coef != 0),
+    mean_coef = mean(coef[coef != 0]),
+    sd_coef = sd(coef[coef != 0]),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(times_selected), desc(abs(mean_coef)))
+
+summary_df
+```
+
+Here we have used LASSO as a type of sensitivity analysis for spectrum bias within our cohort. Here, we can see that the coefficients of all clinical variables are reduced to zero by the LASSO penalty in all imputations, suggesting that they don't exert a strong effect on the outcome of the reference test or the index test. It should be noted that frequency is a simple heuristic measure of robustness.
+
+Overall, the exploration of spectrum bias suggests that clinical features are unlikely to influence the utility of the index test in an autopsy cohort, but the re-classification of 1-5 haemorrhages in a single eye only may be more important in severe cases, where retinopathy, when present is likely to be severe. Models which accurately predict cerebral parasite sequestration from clinical data are necessary to further validate this finding in cohorts which include survivors.
