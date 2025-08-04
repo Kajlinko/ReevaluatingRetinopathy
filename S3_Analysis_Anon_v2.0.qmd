@@ -19,9 +19,7 @@ format:
 ## 1 Introduction
 To assess the effect of missing data on our cohort, we first describe the characteristics of included participants and those with missing values for the index or reference tests, then perform worst- and best-case scenario sensitivity analyses.
 
-Next, we perform post-hoc power calculations for transparency and to better understand the results by considering the limitations of our cohort. 
-
-Finally, we explore spectrum bias within our cohort. Discussions of the inherent biases of autopsy cohort are found in the main article.
+Next, we explore spectrum bias within our cohort. Discussions of the inherent biases of autopsy cohort are found in the main article.
 
 First though, we should read the data output from S2 Analysis.
 
@@ -240,89 +238,7 @@ sens4 <- testCompareR::summariseR(sens4)
 sensitivity_analysis(ref2, sens4)
 ```
 
-## 3 Post-hoc power calculations
-Because our sample size is small for the sub-analysis (n=60) there is a high likelihood that this analysis is underpowered to detect a difference between the definitions of malarial retinopathy if a difference exists. Because `testCompareR` uses different methods depending on the sample size and disease prevalence, we cannot easily use asymptotic methods to calculate power. Instead, we can employ simulation to approximate our power and the sample size required to achieve 80% power to detect a difference. This will be useful for future research.
-
-```{r message=FALSE, warning=FALSE}
-#| code-fold: true
-#| code-summary: "Expand to see the code used to produce S5 Figure"
-
-sim_model <- function(n) {
-  results <- replicate(n = 1000, expr = {
-    boot_sample <- ophth %>% 
-    filter(complete.cases(ophth_ret) & complete.cases(true_cm) & 
-             complete.cases(recoded)) %>%
-    select(ophth_ret, recoded, true_cm) %>%
-    slice_sample(n = n, replace = TRUE)
-    
-    testCompareR::compareR(test1 = boot_sample$ophth_ret,
-                           test2 = boot_sample$recoded,
-                           gold = boot_sample$true_cm)$acc$spec.p.adj < 0.05})
-  
-  mean(unlist(results), na.rm = TRUE)
-  
-}
-
-sample_size <- seq.int(50, 200, 10)
-power <- sapply(sample_size, sim_model)
-power <- data.frame(sample_size, power)
-
-power <- power %>%
-  mutate(method = ifelse(sample_size <= 100, "exact", "wald"))
-
-lm_exact <- lm(power ~ sample_size, data = subset(power, method == "exact"))
-lm_wald  <- lm(power ~ poly(sample_size, 2, raw = TRUE), 
-               data = subset(power, method == "wald"))
-
-pred_power <- coef(lm_exact)[1] + 60*coef(lm_exact)[2]
-
-a <- coef(lm_wald)[1]
-b <- coef(lm_wald)[2]
-c <- coef(lm_wald)[3]
-
-delta <- b^2 - 4*c*(a - 0.8)
-n1 <- (-b + sqrt(delta)) / (2*c)
-n2 <- (-b - sqrt(delta)) / (2*c)
-
-pred_n <- ifelse(n1 >= 50 & n1 <= 200, n1, n2)
-
-power$pred_quad <- NA
-power$pred_exp <- NA
-
-power$pred_quad[power$method == "exact"] <- predict(lm_exact)
-power$pred_quad[power$method == "wald"]  <- predict(lm_wald)
-
-g1 <- ggplot(power, aes(x = sample_size, y = power, color = method)) +
-  geom_point(size = 2) +
-  geom_line(aes(y = pred_quad), linetype = "dashed") +
-  geom_segment(aes(x = 50, xend = pred_n, y = 0.80, yend = 0.80), 
-               linetype = "dotted", colour = "blue") +
-  geom_segment(aes(x = pred_n, xend = pred_n, y = 0.2, yend = 0.80), 
-               linetype = "dotted", colour = "blue") +
-  geom_segment(aes(x = 50, xend = 60, y = pred_power, yend = pred_power), 
-               linetype = "dotted", colour = "purple") +
-  geom_segment(aes(x = 60, xend = 60, y = 0.2, yend = pred_power), 
-               linetype = "dotted", colour = "purple") +
-  geom_text(aes(x = 160, y = 0.75, 
-                label = paste0("n = ", round(pred_n, 0))), 
-            colour = "black", hjust = -0.1) +
-  geom_text(aes(x = 63, y = pred_power, 
-                label = paste0("Power = ", round(pred_power*100, 1), "%")), 
-            colour = "black", hjust = -0.1) +
-  theme_minimal(base_size = 14) +
-  labs(x = "Sample size",
-       y = "Estimated power",
-       color = "method")
-
-# filename <- "S5_Figure.pdf"
-# ggsave(filename, plot = g1, width = 8, height = 6)
-
-g1
-```
-
-This shows that the sample size limitation inherent in our retrospective analysis left us underpowered and may explain in part why we are only seeing a trend towards significance. To be adequately powered to detect a difference in specificity of 12% (observed in this cohort) we would need to recruit 157 patients. 
-
-## 4 Exploring spectrum bias
+## 3 Exploring spectrum bias
 
 Spectrum bias is an inherent limitation of autopsy studies and this has been discussed in the main article. Unfortunately, there is no suitable validation cohort because autopsy studies in paediatric cerebral malaria are few. Using a model to predict cerebral parasite sequestration as the ground truth in cohorts which include survivors is possible, but is likely to encounter problems of reliability because models lack sufficiently high performance to be used as a reference test or rely on malarial retinopathy as one of the input variables, thus introducing circular logic when evaluating the effect of adjusting the definition of malarial retinopathy.
 
@@ -506,7 +422,7 @@ Here we can see that changing the definition of malarial retinopathy such that 1
 
 Another method to evaluate the effects of clinical parameters (surrogates for disease severity) on test performance is to treat it as a classification problem and use logistic regression to predict the binary outcome of the response variable (reference test) from predictor variables including the index test (binary) and clinical variables. Using the LASSO regularisation method allows us to assess whether clinical variables or the interaction between the index test and clinical variables are important for prediction accuracy. LASSO regression may penalise the index test, reducing the model coefficient to zero. To avoid this, we can set the penalty for this variable to zero and see whether any other clinical variables included in the model exert an influence on the prediction over and above the effect of the index test.
 
-Because construction of the model matrix requires complete data, we used multiple imputation by chained equations to produce 5 data sets for LASSO logistic regression and evaluated how frequently predictors were retained following LASSO penalisation and the mean effect size. We ran the LASSO logistic regression using the original cohort (n=84).  
+Because construction of the model matrix requires complete data, we used multiple imputation by chained equations to produce 10 data sets for LASSO logistic regression and evaluated how frequently predictors were retained following LASSO penalisation and the mean effect size. We ran the LASSO logistic regression using the original cohort (n=84).  
 
 ```{r message=FALSE, warning=FALSE}
 vars <- c("true_cm", "final_ret", "age", "sex", "feverdur", "temp", "pulse", 
