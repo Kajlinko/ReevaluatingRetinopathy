@@ -374,7 +374,7 @@ ft1 <- flextable(summary_table) %>%
 ft1
 ```
 
-**S3 Table 1. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=60) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.
+***S3 Table 1. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=60) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.*
 
 ```{r message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -420,7 +420,7 @@ ft2 <- flextable(summary_table) %>%
 ft2
 ```
 
-**S3 Table 2. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=157) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.
+***S3 Table 2. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=157) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.*
 
 Here we can see that changing the definition of malarial retinopathy such that 1-5 haemorrhages in one eye only is not considered predictive of cerebral parasite sequestration appears to only affect children in the 'severe' group (that is, those who died most quickly after admission). This suggests that this change in the definition is most useful in severe cases. It should be noted, though, that this change didn't appear to detrimentally affect less severe children in this cohort. Given that being declared retinopathy negative should increase clinician vigilance, the safest thing for patients in whom the sole sign of malarial retinopathy is 1-5 haemorrhages in one eye only is to classify them as 'at risk' of misdiagnosis and consider alternatives quickly if there is limited response to treatment. 
 

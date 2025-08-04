@@ -365,7 +365,7 @@ ft1 %>% # maybe print in appendix
   align(align = "center", part = "header") %>%
   align(align = "center", part = "body", j = c(1,3))
 ``` 
-**S2 Table 1. Consensus review of mismatched cases.** Review by two reviewers to establish the final retinal status in cases where the records and the chart review were mismatched. 
+***S2 Table 1. Consensus review of mismatched cases.** Review by two reviewers to establish the final retinal status in cases where the records and the chart review were mismatched. *
 
 To complete the final retinopathy classification, we should update the value from the table which is marked for change.
 
@@ -564,7 +564,7 @@ ft2 <- flextable(body) %>%
 ft2
 ```
 
-**S2 Table 2. Demographics summarised by presence of cerebral parasite sequestration and presence of malarial retinopathy.** `*` indicates number of participants meeting specified condition (percentage). All other values indicate the median (range). BCS – Blantyre Coma Score; BP – blood pressure; bpm – beats per minute; CSF – cerebrospinal fluid; rpm – respirations per minute. Corresponds to Table 1 in the manuscript.
+***S2 Table 2. Demographics summarised by presence of cerebral parasite sequestration and presence of malarial retinopathy.** \* indicates number of participants meeting specified condition (percentage). All other values indicate the median (range). BCS – Blantyre Coma Score; BP – blood pressure; bpm – beats per minute; CSF – cerebrospinal fluid; rpm – respirations per minute. Corresponds to Table 1 in the manuscript.*
 
 Next we need to examine the test metrics for the retinopathy findings as determined by the original reviewers and the chart review that we conducted.
 
@@ -582,6 +582,8 @@ interpretR(res_all)
 filename <- here("../AnonData/CompleteCohort.RData")
 saveRDS(dat, filename)
 ```
+
+*The data output above contributes to Table 2 and Table 3 of the manuscript.*
 
 #### 3.4.2 Re-defining retinopathy such that 1-5 haemorrhages in one eye is **not** considered predictive of cerebral parasite sequestration
 
@@ -682,7 +684,7 @@ filename <- here("../AnonData/OphthCohort.RData")
 saveRDS(full_ret, filename)
 ```
 
-**The data output above makes up Table 2 and Table 3 of the manuscript.**
+*The data output above contributes to Table 2 and Table 3 of the manuscript.*
 
 ## 4 Conclusions
 
