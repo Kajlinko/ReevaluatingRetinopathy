@@ -244,7 +244,7 @@ Spectrum bias is an inherent limitation of autopsy studies and this has been dis
 
 We can approximate the effects of spectrum bias within cohort, however, by using clinical parameters as estimators of disease severity. One parameter which might give a clue as to how disease severity affects our estimates of sensitivity and specificity is time to death. This relies on the assumption that children who are more sick are closer to death. This assumption may not always hold - for example, a child may receive more intervention, there may be a higher level of care available to that child, or they may have a complication more amenable to intervention. All of these scenarios are independent of disease severity, but may influence time to death. It is worth bearing this in mind as we conduct the next analysis.
 
-The first analysis we conducted to explore spectrum bias stratified children by time to death and selected children from the bottom quartile and top quartile. Because this reduces the already small sample size we used bootstrapping from these cohorts to create simulated data sets of n=60 (sub-analysis sample size), n=84 (main analysis sample size) and n=157 (from above power calculation).
+The first analysis we conducted to explore spectrum bias stratified children by time to death and selected children from the bottom quartile and top quartile. Because this reduces the already small sample size we used bootstrapping from these cohorts to create simulated data sets of n=60 (sub-analysis sample size) and n=157 (adequately powered sample).
 
 With these data sets we can then look for differences in sensitivity and specificity of malarial retinopathy in the less severe and more severe groups. We can also evaluate the effect of adjusting the definition of malarial retinopathy in less severe and more severe group.
 
@@ -374,6 +374,8 @@ ft1 <- flextable(summary_table) %>%
 ft1
 ```
 
+**S3 Table 1. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=60) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.
+
 ```{r message=FALSE, warning=FALSE}
 #| code-fold: true
 #| code-summary: "Expand to see the code used to produce table"
@@ -417,6 +419,8 @@ ft2 <- flextable(summary_table) %>%
 
 ft2
 ```
+
+**S3 Table 2. Analysis of spectrum bias.**  Comparison of the mean of all bootstrapped values (n=157) for diagnostic accuracies for children who are severely sick (time to death in bottom quartile) and those who are moderately sick (time to death in upper quartile). Test 1 represents the original definition of malarial retinopathy. Test 2 represents the definition in which 1-5 haemorrhages in one eye only is insufficient to predict cerebral parasite sequestration. PPV - positive predictive value; NPV - negative predictive value; PLR - positive likelihood ratio; NLR - negative likelihood ratio.
 
 Here we can see that changing the definition of malarial retinopathy such that 1-5 haemorrhages in one eye only is not considered predictive of cerebral parasite sequestration appears to only affect children in the 'severe' group (that is, those who died most quickly after admission). This suggests that this change in the definition is most useful in severe cases. It should be noted, though, that this change didn't appear to detrimentally affect less severe children in this cohort. Given that being declared retinopathy negative should increase clinician vigilance, the safest thing for patients in whom the sole sign of malarial retinopathy is 1-5 haemorrhages in one eye only is to classify them as 'at risk' of misdiagnosis and consider alternatives quickly if there is limited response to treatment. 
 
@@ -476,3 +480,7 @@ summary_df
 Here we have used LASSO as a type of sensitivity analysis for spectrum bias within our cohort. Here, we can see that the coefficients of all clinical variables are reduced to zero by the LASSO penalty in all imputations, suggesting that they don't exert a strong effect on the outcome of the reference test or the index test. It should be noted that frequency is a simple heuristic measure of robustness.
 
 Overall, the exploration of spectrum bias suggests that clinical features are unlikely to influence the utility of the index test in an autopsy cohort, but the re-classification of 1-5 haemorrhages in a single eye only may be more important in severe cases, where retinopathy, when present is likely to be severe. Models which accurately predict cerebral parasite sequestration from clinical data are necessary to further validate this finding in cohorts which include survivors.
+
+```{r}
+sessionInfo()
+```
