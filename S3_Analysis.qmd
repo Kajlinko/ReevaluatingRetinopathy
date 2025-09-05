@@ -205,3 +205,7 @@ for (i in seq_along(features)) {
 ## 3 Conclusions
 
 Taken together, these findings show that, while there is considerable agreement between graders (including graders of different training levels), malarial retinopathy grading by photos alone risks systematically undergrading haemorrhages and vessel change (a peripheral finding).
+
+```{r}
+sessionInfo()
+```

@@ -249,7 +249,7 @@ The first analysis we conducted to explore spectrum bias stratified children by 
 With these data sets we can then look for differences in sensitivity and specificity of malarial retinopathy in the less severe and more severe groups. We can also evaluate the effect of adjusting the definition of malarial retinopathy in less severe and more severe group.
 
 ```{r message=FALSE, warning=FALSE}
-demo <- read_xlsx(here("../AnonData/Demographicdata.xlsx"))
+demo <- read_xlsx(here("../AnonData/S4_Data.xlsx"))
 lq <- quantile(demo$death, 0.25)
 uq <- quantile(demo$death, 0.75)
 
