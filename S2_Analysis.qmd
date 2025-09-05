@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  html: default
-  #pdf: default
+  #html: default
+  pdf: default
   #docx: default
 ---
 
@@ -21,7 +21,7 @@ To assess the effect of missing data on our cohort, we first describe the charac
 
 Next, we explore spectrum bias within our cohort. Discussions of the inherent biases of autopsy cohort are found in the main article.
 
-First though, we should read the data output from S2 Analysis.
+First though, we should read the data output from S1 Analysis.
 
 ```{r message=FALSE, warning=FALSE}
 #| code-fold: true
@@ -58,7 +58,7 @@ ref2 <- ophth %>%
 ref2 <- summariseR(ref2)
 ```
 
-Then we produce the comparative table for the included and missing cohorts (S4).
+Then we produce the comparative table for the included and missing cohorts.
 
 ```{r message=FALSE, warning=FALSE}
 #| code-fold: true

@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  html: default
-  #pdf: default
+  #html: default
+  pdf: default
   #docx: default
 ---
 
@@ -67,7 +67,7 @@ Next, we import the data. We can remove all columns except 'Malaria Project Numb
 
 ```{r message=FALSE, warning=FALSE}
 # import data
-tab <- read_xlsx(here("../AnonData/OriginalAutopsyData.xlsx")) %>%
+tab <- read_xlsx(here("../AnonData/S1_Data.xlsx")) %>%
   remove_empty()
 
 # select and rename essential columns
@@ -178,7 +178,7 @@ The data was collected by two reviewers (KJW and AL) and stored in an Excel spre
 
 ```{r message=FALSE, warning=FALSE}
 # import data from chart review
-chart <- read_xlsx(here("../AnonData/ChartReviewData.xlsx")) %>%
+chart <- read_xlsx(here("../AnonData/S2_Data.xlsx")) %>%
   remove_empty()
 
 # add column to tab of new chart retinopathy data
@@ -231,7 +231,7 @@ We made a decision to include any graded assessment where more than 50% of the r
 
 ```{r message=FALSE, warning=FALSE}
 # import graded retinopathy database
-rtd <- read.csv(here("../AnonData/RetinopathyData.csv")) %>%
+rtd <- read.csv(here("../AnonData/S3_Data.csv")) %>%
   remove_empty()
 
 # BELOW COMMENTED OUT - ONLY USE WITH COMPLETE DATASET
@@ -339,7 +339,7 @@ Each of these cases were reviewed again by two authors (KJW and KBS). The reason
 table1 <- as.data.frame(rem_disagree)
 
 # import comments and change indicators
-comments <- read_xlsx(here("../AnonData/ChartReviewData.xlsx"), sheet = 2)
+comments <- read_xlsx(here("../AnonData/S2_Data.xlsx"), sheet = 2)
 #comments <- comments %>%
 #  mutate(
 #    mp_number = paste0("MP", str_pad(mp_number, 4, pad = 0))
@@ -396,7 +396,7 @@ We should first describe our population in terms of their demographics. To do th
 #| code-fold: true
 #| code-summary: "Expand to see the code used to produce Table 1"
 
-demo <- read_xlsx(here("../AnonData/DemographicData.xlsx"))
+demo <- read_xlsx(here("../AnonData/S4_Data.xlsx"))
 
 demo[,3:18] <- lapply(demo[,3:18], function(x) {
   x <- as.numeric(x)

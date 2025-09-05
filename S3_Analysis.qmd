@@ -11,8 +11,8 @@ author:
   - "Nicholas AV Beare"
   - "Terrie E Taylor"
 format:
-  html: default
-  #pdf: default
+  #html: default
+  pdf: default
   #docx: default
 ---
 
@@ -43,7 +43,7 @@ for (pkg in packages) {
 
 set.seed(0)
 
-dual <- read_xlsx(here("../AnonData/ImageConcordanceData.xlsx"))
+dual <- read_xlsx(here("../AnonData/S5_Data.xlsx"))
 dual <- dual %>% mutate(across(2:11, ~na_if(.x, -9)))
 
 dual <- dual %>%
@@ -107,7 +107,7 @@ Next, we wanted to compare the data from the photo grading with the findings fro
 #| code-fold: true
 #| code-summary: "Expand to see the code for data cleaning"
 
-rtd <- read.csv(here("../AnonData/RetinopathyConcordanceData.csv"))
+rtd <- read.csv(here("../AnonData/S6_Data.csv"))
 
 rtd <- rtd %>% filter(mp_number %in% dual$mp_number)
 rtd <- rtd %>%
